@@ -1,0 +1,433 @@
+{
+  "name": "Ingesta RAG Moodle UTN",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "055125f7-bcfa-4c78-b58f-aceb3fb71c4d",
+      "name": "Start Ingestion",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg1",
+              "name": "rootFolderId",
+              "value": "18YbblCchD7-OehJfejXnT_OjBs1z0fw_",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9117ce4c-0ad2-440f-900d-e1a10e81dc03",
+      "name": "Configure Root Folder",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        448,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "unidad",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.rootFolderId }}"
+          },
+          "whatToSearch": "folders"
+        },
+        "options": {
+          "fields": [
+            "id",
+            "name"
+          ]
+        }
+      },
+      "id": "4258b3fa-a226-473d-af4a-74f17a662c4e",
+      "name": "List Unit Folders",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        640,
+        400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "jCCRX6ZTZtLkhVwG",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "fileFolder",
+        "queryString": "pdf",
+        "returnAll": true,
+        "filter": {
+          "driveId": {
+            "__rl": true,
+            "mode": "list",
+            "value": "My Drive"
+          },
+          "folderId": {
+            "__rl": true,
+            "mode": "id",
+            "value": "={{ $json.id }}"
+          },
+          "whatToSearch": "files"
+        },
+        "options": {
+          "fields": [
+            "id",
+            "name",
+            "mimeType"
+          ]
+        }
+      },
+      "id": "d95e8027-3e2e-4b54-95e9-51bdddcd408a",
+      "name": "List PDFs in Unit",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        848,
+        400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "jCCRX6ZTZtLkhVwG",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst processedIds = new Set(staticData.processedFileIds || []);\n\nconst items = $input.all();\nconst newItems = items.filter(item => !processedIds.has(item.json.id));\n\n// Marcar optimisticamente como procesados\nnewItems.forEach(item => processedIds.add(item.json.id));\nstaticData.processedFileIds = Array.from(processedIds);\n\nreturn newItems;"
+      },
+      "id": "46123b47-74da-47e8-b688-4afbf0fd9f78",
+      "name": "Filter Already Ingested",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1056,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.id }}"
+        },
+        "options": {
+          "binaryPropertyName": "data"
+        }
+      },
+      "id": "9c6ecc05-a90f-4240-a90d-21719e9cf44f",
+      "name": "Download PDF",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1248,
+        400
+      ],
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "jCCRX6ZTZtLkhVwG",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true,
+          "keepSource": "json"
+        }
+      },
+      "id": "6b89e853-a8fa-4cde-82f4-81c53aadb048",
+      "name": "Extract PDF Text",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        1456,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "conditions": [
+            {
+              "leftValue": "={{ ($json.text || \"\").trim().length }}",
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              },
+              "rightValue": 100
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "60c92b61-1be4-47ee-a32d-025d010db43f",
+      "name": "Skip Empty PDFs",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1648,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "pineconeIndex": {
+          "__rl": true,
+          "mode": "list",
+          "value": "moodle-utn",
+          "cachedResultName": "moodle-utn"
+        },
+        "embeddingBatchSize": 100,
+        "options": {}
+      },
+      "id": "91cb69db-3dfb-4144-9401-c9e86eca1ac5",
+      "name": "Insert to Pinecone",
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.3,
+      "position": [
+        1840,
+        400
+      ],
+      "credentials": {
+        "pineconeApi": {
+          "id": "g8osAXtGEuLBJENX",
+          "name": "Pinecone account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-001"
+      },
+      "id": "9b0f0130-14bd-4bba-851d-1a8c4c5d4715",
+      "name": "Gemini Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1744,
+        624
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "qytDXU112DbbMrdK",
+          "name": "Paga"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $json.text }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "unidad",
+                "value": "={{ $(\"List Unit Folders\").item.json.name.match(/(\\d+)/)?.[1] }}"
+              },
+              {
+                "name": "unidadNombre",
+                "value": "={{ $(\"List Unit Folders\").item.json.name }}"
+              },
+              {
+                "name": "filename",
+                "value": "={{ $(\"List PDFs in Unit\").item.json.name }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "be314236-cdf4-44cf-8065-f00e4b0a8fd4",
+      "name": "Text Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        1872,
+        624
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 800,
+        "chunkOverlap": 150,
+        "options": {}
+      },
+      "id": "0f81591b-e1ef-42f3-8b82-d4ce291387ff",
+      "name": "Recursive Chunker",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        1984,
+        768
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Start Ingestion": {
+      "main": [
+        [
+          {
+            "node": "Configure Root Folder",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Root Folder": {
+      "main": [
+        [
+          {
+            "node": "List Unit Folders",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List Unit Folders": {
+      "main": [
+        [
+          {
+            "node": "List PDFs in Unit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "List PDFs in Unit": {
+      "main": [
+        [
+          {
+            "node": "Filter Already Ingested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Already Ingested": {
+      "main": [
+        [
+          {
+            "node": "Download PDF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download PDF": {
+      "main": [
+        [
+          {
+            "node": "Extract PDF Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Skip Empty PDFs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Empty PDFs": {
+      "main": [
+        [
+          {
+            "node": "Insert to Pinecone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Insert to Pinecone",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Insert to Pinecone",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Chunker": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Text Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "d50c6c41-ca72-4ddb-ad7d-b6350d4db90d",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "instanceId": "598ec986d25c6df54fb0d078300b3fe17c684a42adb35adae449cd6ffe3d8def"
+  },
+  "id": "d6iN5IGIsknraCGw",
+  "tags": []
+}

@@ -1,0 +1,302 @@
+{
+  "name": "Monitor Foros Moodle UTN v2",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "58aa6a43-64fc-4389-86c7-392194f11464",
+      "name": "Cada 30 Minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://tup.sied.utn.edu.ar/login/token.php",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username"
+            },
+            {
+              "name": "password"
+            },
+            {
+              "name": "service",
+              "value": "moodle_mobile_app"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "65f7d4c7-3361-4a3f-8e42-98f7a9825847",
+      "name": "Obtener Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://tup.sied.utn.edu.ar/webservice/rest/server.php",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wstoken",
+              "value": "={{ $json.token }}"
+            },
+            {
+              "name": "wsfunction",
+              "value": "mod_forum_get_forums_by_courses"
+            },
+            {
+              "name": "courseids[0]",
+              "value": "38"
+            },
+            {
+              "name": "moodlewsrestformat",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "22491b0d-23cd-41e8-bd53-8e0e817db0e4",
+      "name": "Obtener Foros del Curso",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        640,
+        304
+      ],
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "jsCode": "const TARGET_CMIDS = [11156, 11201, 11226, 11181, 11248];\nconst items = $input.all();\nconst filtered = items.filter(item => TARGET_CMIDS.includes(item.json.cmid));\nreturn filtered.map(item => ({\n  json: { forumId: item.json.id, forumName: item.json.name, cmid: item.json.cmid }\n}));"
+      },
+      "id": "4b1f7619-bc93-4bc8-8e64-05431144d271",
+      "name": "Filtrar Foros Objetivo",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        848,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://tup.sied.utn.edu.ar/webservice/rest/server.php",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wstoken",
+              "value": "={{ $(\"Obtener Token\").first().json.token }}"
+            },
+            {
+              "name": "wsfunction",
+              "value": "mod_forum_get_forum_discussions"
+            },
+            {
+              "name": "forumid",
+              "value": "={{ $json.forumId }}"
+            },
+            {
+              "name": "moodlewsrestformat",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "17f10b64-24a5-4ddd-a9fd-ba00215d4682",
+      "name": "Obtener Discusiones",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1040,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst forums = $('Filtrar Foros Objetivo').all();\nconst unanswered = [];\n\nfunction stripHtml(html) {\n  return html.replace(/<[^>]*>/g, \"\").replace(/&nbsp;/g, \" \").replace(/&amp;/g, \"&\").replace(/&lt;/g, \"<\").replace(/&gt;/g, \">\").replace(/&quot;/g, '\"').replace(/\\s+/g, \" \").trim();\n}\n\nfor (let i = 0; i < items.length; i++) {\n  const forumName = forums[i] ? forums[i].json.forumName : 'Foro desconocido';\n  const discussions = items[i].json.discussions || [];\n  for (const d of discussions) {\n    if (d.numreplies === 0) {\n      let body = stripHtml(d.message || \"\");\n      if (body.length > 300) body = body.substring(0, 300) + \"...\";\n      unanswered.push({ json: {\n        discussionId: d.discussion,\n        forumName,\n        title: d.subject || d.name,\n        author: d.userfullname || 'Desconocido',\n        body,\n        url: 'https://tup.sied.utn.edu.ar/mod/forum/discuss.php?d=' + d.discussion\n      }});\n    }\n  }\n}\nreturn unanswered;"
+      },
+      "id": "37fa23b0-825a-4203-96a1-df7ab2c064bd",
+      "name": "Buscar Consultas Sin Respuesta",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1248,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.notifiedDiscussionIds = [];\nconst notifiedIds = new Set(staticData.notifiedDiscussionIds || []);\n\nconst items = $input.all();\nconst newItems = items.filter(item => !notifiedIds.has(item.json.discussionId));\n\nnewItems.forEach(item => notifiedIds.add(item.json.discussionId));\nstaticData.notifiedDiscussionIds = Array.from(notifiedIds);\n\nreturn newItems;"
+      },
+      "id": "2bbcbf57-9e4a-407a-bf8e-2d0411b444dd",
+      "name": "Filtrar Ya Notificadas",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1456,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "1415649706",
+        "text": "={{ \"📚 <b>\" + $json.forumName + \"</b>\\n👤 <i>\" + $json.author + \"</i>\\n❓ <b>\" + $json.title + \"</b>\\n\\n\" + $json.body + \"\\n\\n<a href=\\\"\" + $json.url + \"\\\">Ver en Moodle</a>\" }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🤖 Generar respuesta IA",
+                    "additionalFields": {
+                      "callback_data": "={{ \"generate:\" + $json.discussionId }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "5249f23e-020e-4b02-bac9-990714743a22",
+      "name": "Notificar por Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1648,
+        304
+      ],
+      "webhookId": "c2a1e4cf-ad22-4ec5-8798-6dc3acd716cb",
+      "credentials": {
+        "telegramApi": {
+          "id": "Toi7xPxr8UFWHKpS",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada 30 Minutos": {
+      "main": [
+        [
+          {
+            "node": "Obtener Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Token": {
+      "main": [
+        [
+          {
+            "node": "Obtener Foros del Curso",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Foros del Curso": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Foros Objetivo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Foros Objetivo": {
+      "main": [
+        [
+          {
+            "node": "Obtener Discusiones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obtener Discusiones": {
+      "main": [
+        [
+          {
+            "node": "Buscar Consultas Sin Respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar Consultas Sin Respuesta": {
+      "main": [
+        [
+          {
+            "node": "Filtrar Ya Notificadas",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filtrar Ya Notificadas": {
+      "main": [
+        [
+          {
+            "node": "Notificar por Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "versionId": "42b5a971-eaa0-4823-b49c-e2ea96976cfb",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "instanceId": "598ec986d25c6df54fb0d078300b3fe17c684a42adb35adae449cd6ffe3d8def"
+  },
+  "id": "pAPlJkDBP8ErZeiM",
+  "tags": []
+}
