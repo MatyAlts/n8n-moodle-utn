@@ -17,7 +17,7 @@
         0,
         1008
       ],
-      "webhookId": "5741211f-c5d4-42b0-93a4-1c34b5ace9ed",
+      "webhookId": "ffaed0da-c34f-4b07-b6a3-f4bcb9ec3f0b",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -27,7 +27,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const PENDING_EDIT_TTL_MS = 30 * 60 * 1000;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nconst item = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (item.callback_query) {\n  const parts = (item.callback_query.data || '').split(':');\n  const action = parts[0];\n  const discussionId = parseInt(parts[1]);\n  const namespace = parts[2] || 'prog1';\n  return [{ json: { action, discussionId, namespace, callbackQueryId: item.callback_query.id, chatId: String(item.callback_query.message?.chat?.id || '1415649706') } }];\n}\nif (item.message?.text) {\n  const pending = staticData.pendingEdit;\n  if (pending) {\n    const age = pending.createdAt ? (Date.now() - pending.createdAt) : Infinity;\n    if (age < PENDING_EDIT_TTL_MS) {\n      const text = item.message.text;\n      return [{ json: { action: 'text_reply', discussionId: pending.discussionId, postId: pending.postId, text, textHtml: '<p>' + escapeHtml(text) + '</p>', chatId: String(item.message.chat?.id || '1415649706') } }];\n    }\n    delete staticData.pendingEdit;\n  }\n}\nreturn [{ json: { action: 'ignore' } }];"
+        "jsCode": "\nconst PENDING_EDIT_TTL_MS = 30 * 60 * 1000;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nconst item = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (item.callback_query) {\n  const parts = (item.callback_query.data || '').split(':');\n  const action = parts[0];\n  const discussionId = parseInt(parts[1]);\n  const namespace = parts[2] || 'prog1';\n  return [{ json: { action, discussionId, namespace, callbackQueryId: item.callback_query.id, chatId: String(item.callback_query.message?.chat?.id || '1415649706') } }];\n}\nif (item.message?.text) {\n  const pending = staticData.pendingEdit;\n  if (pending) {\n    const age = pending.createdAt ? (Date.now() - pending.createdAt) : Infinity;\n    if (age < PENDING_EDIT_TTL_MS) {\n      const text = item.message.text;\n      return [{ json: { action: 'text_reply', discussionId: pending.discussionId, postId: pending.postId, text, textHtml: '<p>' + escapeHtml(text) + '</p>', chatId: String(item.message.chat?.id || '1415649706') } }];\n    }\n    delete staticData.pendingEdit;\n  }\n}\nreturn [{ json: { action: 'ignore' } }];\n"
       },
       "id": "2ca27f97-d5c4-487e-a1cf-2e15f80b953d",
       "name": "Parse Event",
@@ -181,7 +181,7 @@
         672,
         320
       ],
-      "webhookId": "2d493e4f-474b-4ff3-a0a1-231612204035",
+      "webhookId": "92f71b27-096e-40f8-96e6-d89d862b626b",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -257,7 +257,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const posts = $json.posts || [];\nconst firstPost = posts[0] || {};\nfunction stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/\\s+/g,' ').trim(); }\nconst question = stripHtml(firstPost.message || '');\nconst postId = firstPost.id;\nconst discussionId = $('Parse Event').first().json.discussionId;\nconst chatId = $('Parse Event').first().json.chatId;\nconst namespace = $('Parse Event').first().json.namespace || 'prog1';\nconst subject = firstPost.subject || 'Re:';\nreturn [{ json: { question, postId, discussionId, chatId, subject, namespace } }];"
+        "jsCode": "\nconst posts = $json.posts || [];\nconst firstPost = posts[0] || {};\nfunction stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/\\s+/g,' ').trim(); }\nconst question = stripHtml(firstPost.message || '');\nconst postId = firstPost.id;\nconst discussionId = $('Parse Event').first().json.discussionId;\nconst chatId = $('Parse Event').first().json.chatId;\nconst namespace = $('Parse Event').first().json.namespace || 'prog1';\nconst subject = firstPost.subject || 'Re:';\nconst fullName = (firstPost.author && firstPost.author.fullname) || '';\nconst authorName = fullName.split(' ')[0] || 'alumno';\nreturn [{ json: { question, postId, discussionId, chatId, subject, namespace, authorName } }];\n"
       },
       "id": "6faaf7bb-2a77-494c-8838-de1d58250451",
       "name": "Prepare Question",
@@ -271,9 +271,9 @@
     {
       "parameters": {
         "promptType": "define",
-        "text": "={{ $json.question }}",
+        "text": "={{ 'El alumno/a se llama ' + $json.authorName + '. Su consulta es: ' + $json.question }}",
         "options": {
-          "systemPromptTemplate": "Sos un tutor de la UTN. Tu rol es asistir a los alumnos con sus consultas de manera clara, cercana y didáctica, tal como lo haría un tutor humano del equipo docente.\n\n**Sobre el material disponible:**\nEl contexto que recibís es material oficial de la materia, descargado del aula virtual de Moodle (PDFs por unidad temática). Usalo como referencia principal cuando sea relevante para la consulta. Si la pregunta no está cubierta por ese material (por ejemplo, consultas sobre la plataforma Moodle, GitHub, Git, VS Code, instalación de herramientas, o conceptos generales de programación), respondé con tu conocimiento general sin limitarte al RAG.\n\n**Extensión de la respuesta:**\nRespondé de forma proporcional a la complejidad de la consulta. Si la pregunta tiene una respuesta corta y directa, dala así — no la inflés. Solo desarrollá más cuando la consulta genuinamente lo requiera.\n\n**Estilo y tono:**\n- Usá voseo rioplatense (\"podés\", \"tenés\", \"hacés\", \"vas a ver\").\n- Saludá de forma cordial al inicio (\"¡Buenas!\", \"Hola, ¿cómo estás?\").\n- Si la consulta tiene varios puntos, respondé punto por punto con lista numerada.\n- Sé directo y conciso.\n- Incluí ejemplos de código cuando sea necesario, siempre bien formateados.\n- Si necesitás más información para responder correctamente (por ejemplo, un mensaje de error o una captura de pantalla), pedísela explícitamente.\n- Cerrá con una frase amable como \"Espero que haya resuelto tu duda, cualquier cosa estamos a disposición. ¡Saludos!\"\n\n**Lo que NO debés hacer:**\n- No inventes información que no sabés con certeza. Si no tenés certeza, decilo explícitamente.\n- No uses frases del estilo \"Como modelo de lenguaje...\" o similares.\n- No respondas en inglés.\n- No limitás tu respuesta al contexto del RAG si la pregunta es más general.\n- NO hagas preguntas al final para continuar la conversación (\"¿Necesitás ayuda con algo más?\", \"¿Hay algún otro concepto con el que necesites ayuda?\", etc.). Respondé la consulta y cerrá.\n\nContexto del material de la materia:\n{context}"
+          "systemPromptTemplate": "Sos un tutor de la UTN. Tu rol es asistir a los alumnos con sus consultas de manera clara, cercana y didáctica, tal como lo haría un tutor humano del equipo docente.\n\n**Sobre el material disponible:**\nEl contexto que recibís es material oficial de la materia, descargado del aula virtual de Moodle (PDFs por unidad temática). Usalo como referencia principal cuando sea relevante para la consulta. Si la pregunta no está cubierta por ese material (por ejemplo, consultas sobre la plataforma Moodle, GitHub, Git, VS Code, instalación de herramientas, o conceptos generales de programación), respondé con tu conocimiento general sin limitarte al RAG.\n\n**Extensión de la respuesta:**\nRespondé de forma proporcional a la complejidad de la consulta. Si la pregunta tiene una respuesta corta y directa, dala así — no la inflés. Solo desarrollá más cuando la consulta genuinamente lo requiera.\n\n**Estilo y tono:**\n- Usá voseo rioplatense (\"podés\", \"tenés\", \"hacés\", \"vas a ver\").\n- Comenzá SIEMPRE el saludo mencionando el nombre del alumno/a por su primer nombre. El nombre viene al inicio del prompt, antes de \"Su consulta es:\". Ejemplo: \"¡Hola Gianfranco! Sobre tu consulta...\"\n- Si la consulta tiene varios puntos, respondé punto por punto con lista numerada.\n- Sé directo y conciso.\n- Incluí ejemplos de código cuando sea necesario, siempre bien formateados.\n- Si necesitás más información para responder correctamente (por ejemplo, un mensaje de error o una captura de pantalla), pedísela explícitamente.\n- Cerrá con una frase amable como \"Espero que haya resuelto tu duda, cualquier cosa estamos a disposición. ¡Saludos!\"\n\n**Lo que NO debés hacer:**\n- No inventes información que no sabés con certeza. Si no tenés certeza, decilo explícitamente.\n- No uses frases del estilo \"Como modelo de lenguaje...\" o similares.\n- No respondas en inglés.\n- No limitás tu respuesta al contexto del RAG si la pregunta es más general.\n- NO hagas preguntas al final para continuar la conversación (\"¿Necesitás ayuda con algo más?\", \"¿Hay algún otro concepto con el que necesites ayuda?\", etc.). Respondé la consulta y cerrá.\n\nContexto del material de la materia:\n{context}"
         }
       },
       "id": "a59f19a0-5502-42ea-84d9-9bc1a4d525bb",
@@ -366,7 +366,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.pendingResponses) staticData.pendingResponses = {};\nconst response = $json.response || '';\nconst discussionId = $('Prepare Question').first().json.discussionId;\nconst postId = $('Prepare Question').first().json.postId;\nconst subject = $('Prepare Question').first().json.subject;\nconst chatId = $('Prepare Question').first().json.chatId;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nfunction formatInline(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/\\*(.+?)\\*/g,'<i>$1</i>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/_(.+?)_/g,'<i>$1</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nfunction formatInlineTelegram(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nconst BT3 = String.fromCharCode(96).repeat(3);\nconst fencePattern = new RegExp(BT3 + '(\\\\w*)\\\\n?([\\\\s\\\\S]*?)' + BT3, 'g');\nconst fencePatternTg = new RegExp(BT3 + '\\\\w*\\\\n?[\\\\s\\\\S]*?' + BT3, 'g');\nfunction markdownToHtml(text) {\n  const codeBlocks = [];\n  const withPlaceholders = text.replace(fencePattern, (match, lang, code) => { const escaped = escapeHtml(code.replace(/\\n$/, '')); const idx = codeBlocks.length; codeBlocks.push('<pre><code>' + escaped + '</code></pre>'); return '\\n%%CB_' + idx + '%%\\n'; });\n  const lines = withPlaceholders.split('\\n');\n  const result = [];\n  let inOl = false, inUl = false;\n  for (const line of lines) {\n    const trimmed = line.trim();\n    const cbMatch = trimmed.match(/^%%CB_(\\d+)%%$/);\n    if (cbMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push(codeBlocks[parseInt(cbMatch[1])]); continue; }\n    const olMatch = trimmed.match(/^\\d+\\.\\s+(.*)/);\n    const ulMatch = trimmed.match(/^[-*]\\s+(.*)/);\n    const headingMatch = trimmed.match(/^#{1,3}\\s+(.*)/);\n    if (headingMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push('<b>' + formatInline(headingMatch[1]) + '</b>'); }\n    else if (olMatch) { if (inUl) { result.push('</ul>'); inUl = false; } if (!inOl) { result.push('<ol>'); inOl = true; } result.push('<li>' + formatInline(olMatch[1]) + '</li>'); }\n    else if (ulMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (!inUl) { result.push('<ul>'); inUl = true; } result.push('<li>' + formatInline(ulMatch[1]) + '</li>'); }\n    else { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } if (trimmed === '') result.push('<br>'); else result.push('<p>' + formatInline(trimmed) + '</p>'); }\n  }\n  if (inOl) result.push('</ol>');\n  if (inUl) result.push('</ul>');\n  return result.join('\\n');\n}\nfunction toTelegramPreview(text) { return formatInlineTelegram(text.replace(fencePatternTg, '<i>[ver código en Moodle]</i>')); }\nconst htmlResponse = markdownToHtml(response);\nstaticData.pendingResponses[String(discussionId)] = { text: htmlResponse, postId, subject };\nconst telegramPreview = toTelegramPreview(response);\nconst preview = '\\u{1F4DD} <b>Respuesta generada por IA:</b>\\n\\n' + telegramPreview + '\\n\\n<i>\\u00BFQu\\u00E9 hacemos con esta respuesta?</i>';\nreturn [{ json: { preview, discussionId, chatId, cbPublish: 'publish:' + discussionId, cbEdit: 'edit:' + discussionId, cbDiscard: 'discard:' + discussionId } }];"
+        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.pendingResponses) staticData.pendingResponses = {};\nconst response = $json.response || '';\nconst discussionId = $('Prepare Question').first().json.discussionId;\nconst postId = $('Prepare Question').first().json.postId;\nconst subject = $('Prepare Question').first().json.subject;\nconst chatId = $('Prepare Question').first().json.chatId;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nfunction formatInline(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/\\*(.+?)\\*/g,'<i>$1</i>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/_(.+?)_/g,'<i>$1</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nfunction formatInlineTelegram(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nconst BT3 = String.fromCharCode(96).repeat(3);\nconst fencePattern = new RegExp(BT3 + '(\\\\w*)\\\\n?([\\\\s\\\\S]*?)' + BT3, 'g');\nconst fencePatternTg = new RegExp(BT3 + '\\\\w*\\\\n?[\\\\s\\\\S]*?' + BT3, 'g');\nfunction markdownToHtml(text) {\n  const codeBlocks = [];\n  const withPlaceholders = text.replace(fencePattern, (match, lang, code) => { const escaped = escapeHtml(code.replace(/\\n$/, '')); const idx = codeBlocks.length; codeBlocks.push('<pre><code>' + escaped + '</code></pre>'); return '\\n%%CB_' + idx + '%%\\n'; });\n  const lines = withPlaceholders.split('\\n');\n  const result = [];\n  let inOl = false, inUl = false;\n  for (const line of lines) {\n    const trimmed = line.trim();\n    const cbMatch = trimmed.match(/^%%CB_(\\d+)%%$/);\n    if (cbMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push(codeBlocks[parseInt(cbMatch[1])]); continue; }\n    const olMatch = trimmed.match(/^\\d+\\.\\s+(.*)/);\n    const ulMatch = trimmed.match(/^[-*]\\s+(.*)/);\n    const headingMatch = trimmed.match(/^#{1,3}\\s+(.*)/);\n    if (headingMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push('<b>' + formatInline(headingMatch[1]) + '</b>'); }\n    else if (olMatch) { if (inUl) { result.push('</ul>'); inUl = false; } if (!inOl) { result.push('<ol>'); inOl = true; } result.push('<li>' + formatInline(olMatch[1]) + '</li>'); }\n    else if (ulMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (!inUl) { result.push('<ul>'); inUl = true; } result.push('<li>' + formatInline(ulMatch[1]) + '</li>'); }\n    else { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } if (trimmed === '') result.push('<br>'); else result.push('<p>' + formatInline(trimmed) + '</p>'); }\n  }\n  if (inOl) result.push('</ol>');\n  if (inUl) result.push('</ul>');\n  return result.join('\\n');\n}\nfunction toTelegramPreview(text) { return formatInlineTelegram(text.replace(fencePatternTg, '<i>[ver código en Moodle]</i>')); }\nconst htmlResponse = markdownToHtml(response);\nstaticData.pendingResponses[String(discussionId)] = { text: htmlResponse, postId, subject };\nconst telegramPreview = toTelegramPreview(response);\nconst preview = '\\u{1F4DD} <b>Respuesta generada por IA:</b>\\n\\n' + telegramPreview + '\\n\\n<i>\\u00BFQu\\u00E9 hacemos con esta respuesta?</i>';\nreturn [{ json: { preview, discussionId, chatId, cbPublish: 'publish:' + discussionId, cbEdit: 'edit:' + discussionId, cbDiscard: 'discard:' + discussionId } }];\n"
       },
       "id": "9efc80c4-7af2-4d72-a2fe-7408530d5aaa",
       "name": "Store Response",
@@ -423,7 +423,7 @@
         2144,
         320
       ],
-      "webhookId": "cf836921-869f-484a-b278-8e961b876eaa",
+      "webhookId": "ff16ad28-ae96-4339-8b1d-9e3b3eb5fbd7",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -433,7 +433,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nconst callbackQueryId=$json.callbackQueryId;\nconst chatId=$json.chatId;\nif(!stored){return[{json:{error:true,callbackQueryId,chatId}}];}\nreturn[{json:{text:stored.text,postId:stored.postId,subject:stored.subject||'Re:',discussionId,callbackQueryId,chatId}}];"
+        "jsCode": "\nconst staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nconst callbackQueryId=$json.callbackQueryId;\nconst chatId=$json.chatId;\nif(!stored){return[{json:{error:true,callbackQueryId,chatId}}];}\nreturn[{json:{text:stored.text,postId:stored.postId,subject:stored.subject||'Re:',discussionId,callbackQueryId,chatId}}];\n"
       },
       "id": "379ca861-a37c-4a78-8789-74a196bf7e02",
       "name": "Get Stored Response",
@@ -460,7 +460,7 @@
         896,
         816
       ],
-      "webhookId": "923cb6c7-00dd-4456-b14a-666ecb8a51d8",
+      "webhookId": "d2ab18f1-d578-4af7-a8c5-be877e78274e",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -550,7 +550,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Get Stored Response').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();"
+        "jsCode": "\nconst staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Get Stored Response').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();\n"
       },
       "id": "1701dd90-ef29-447f-aa90-5a4e34602b7b",
       "name": "Clean After Publish",
@@ -577,7 +577,7 @@
         1920,
         816
       ],
-      "webhookId": "674f3c92-a562-4f9b-b740-d7e9323dc424",
+      "webhookId": "5c541193-ad06-4209-bfe7-f9b1c4a6c702",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -587,7 +587,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nstaticData.pendingEdit={discussionId,postId:stored?.postId,chatId:$json.chatId,createdAt:Date.now()};\nreturn[{json:{callbackQueryId:$json.callbackQueryId,chatId:$json.chatId}}];"
+        "jsCode": "\nconst staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nstaticData.pendingEdit={discussionId,postId:stored?.postId,chatId:$json.chatId,createdAt:Date.now()};\nreturn[{json:{callbackQueryId:$json.callbackQueryId,chatId:$json.chatId}}];\n"
       },
       "id": "9a11cf98-0a9c-4345-aef7-211c2c85046c",
       "name": "Store Pending Edit",
@@ -612,7 +612,7 @@
         896,
         1008
       ],
-      "webhookId": "1e075789-1843-4016-b99b-408d2cf6d2be",
+      "webhookId": "31e83def-1fc7-4325-a86d-6651f5cdf44b",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -636,7 +636,7 @@
         1120,
         1008
       ],
-      "webhookId": "d12fd925-1463-4d9d-99a3-23eb54f5d317",
+      "webhookId": "7ebaa627-b1d7-454b-abdd-27f7c2910baf",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -658,7 +658,7 @@
         672,
         1200
       ],
-      "webhookId": "bfe4339a-76b3-4f17-a86d-78f6723f16d7",
+      "webhookId": "c388d2dd-793f-468f-bab3-f1b81da98a8f",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -668,7 +668,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Parse Event').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();"
+        "jsCode": "\nconst staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Parse Event').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();\n"
       },
       "id": "335f24b3-3fd3-49a3-8014-31ac95902732",
       "name": "Clean After Discard",
@@ -695,7 +695,7 @@
         1120,
         1200
       ],
-      "webhookId": "ac6ffe66-23ed-4db9-bdb5-9a7b36641cce",
+      "webhookId": "d762ed48-34ab-4fc3-ae90-20c58c0a2a40",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -785,7 +785,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst chatId=staticData.pendingEdit?.chatId||'1415649706';\nconst discussionId=staticData.pendingEdit?.discussionId;\ndelete staticData.pendingEdit;\nif(discussionId&&staticData.pendingResponses){delete staticData.pendingResponses[String(discussionId)];}\nreturn[{json:{chatId}}];"
+        "jsCode": "\nconst staticData=$getWorkflowStaticData('global');\nconst chatId=staticData.pendingEdit?.chatId||'1415649706';\nconst discussionId=staticData.pendingEdit?.discussionId;\ndelete staticData.pendingEdit;\nif(discussionId&&staticData.pendingResponses){delete staticData.pendingResponses[String(discussionId)];}\nreturn[{json:{chatId}}];\n"
       },
       "id": "19a1ef4a-77de-49fd-b172-99099efa54ec",
       "name": "Clear Pending",
@@ -812,7 +812,7 @@
         1344,
         1392
       ],
-      "webhookId": "76568fdd-3bf2-4db4-ae62-b639649732ab",
+      "webhookId": "4645eb52-2275-40f7-b982-4c04e156bd02",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -1135,7 +1135,7 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": true
   },
-  "versionId": "81ac5e17-a12f-48ab-9e7d-c811f1d5740c",
+  "versionId": "042e8b46-f002-408a-856e-580286fa5725",
   "meta": {
     "aiBuilderAssisted": true,
     "builderVariant": "mcp",
