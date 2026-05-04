@@ -1,38 +1,63 @@
 {
-  "name": "Ingesta RAG Moodle UTN",
+  "name": "Ingesta RAG Moodle UTN v2",
   "nodes": [
     {
-      "parameters": {},
-      "id": "055125f7-bcfa-4c78-b58f-aceb3fb71c4d",
-      "name": "Start Ingestion",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [
-        240,
-        400
-      ]
-    },
-    {
       "parameters": {
-        "assignments": {
-          "assignments": [
+        "formTitle": "Ingesta RAG - Seleccionar Materia",
+        "formDescription": "Seleccioná la materia para ingestar sus PDFs en Pinecone.",
+        "formFields": {
+          "values": [
             {
-              "id": "cfg1",
-              "name": "rootFolderId",
-              "value": "18YbblCchD7-OehJfejXnT_OjBs1z0fw_",
-              "type": "string"
+              "fieldLabel": "Materia",
+              "fieldType": "dropdown",
+              "fieldName": "materia",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "prog1"
+                  },
+                  {
+                    "option": "prog2"
+                  },
+                  {
+                    "option": "prog3"
+                  }
+                ]
+              },
+              "requiredField": true
             }
           ]
         },
-        "options": {}
+        "options": {
+          "appendAttribution": false,
+          "respondWithOptions": {
+            "values": {
+              "formSubmittedText": "Ingesta iniciada. Revisá los logs en n8n."
+            }
+          }
+        }
       },
-      "id": "9117ce4c-0ad2-440f-900d-e1a10e81dc03",
-      "name": "Configure Root Folder",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
+      "id": "8d817358-3e22-4f6f-b98a-5a407aa60fe9",
+      "name": "Seleccionar Materia",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.5,
       "position": [
-        448,
-        400
+        0,
+        208
+      ],
+      "webhookId": "5a5f2224-cec8-4925-9995-9fae71460978"
+    },
+    {
+      "parameters": {
+        "jsCode": "const materia = $input.first().json.materia;\n\nconst config = {\n  prog1: { folderId: '1d4yiQzrvgRDZPUc9aNg7S3PzP0cB-JaT', label: 'Programación 1' },\n  prog2: { folderId: '1Hot5A5uxBXvUnuNPWtOyVeFe3HbTXeLH', label: 'Programación 2' },\n  prog3: { folderId: '1Liqve8pM_vhXMN-rGc_vcEZ9lAq_XyQB', label: 'Programación 3' },\n};\n\nconst cfg = config[materia];\nif (!cfg) throw new Error('Materia inválida: ' + materia);\n\nreturn [{ json: {\n  materia,\n  namespace: materia,\n  rootFolderId: cfg.folderId,\n  materiaLabel: cfg.label,\n  errorChatId: '1415649706',\n} }];"
+      },
+      "id": "9b9d79bc-809f-425a-9877-fdee57f2d6db",
+      "name": "Configure Root Folder",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        224,
+        208
       ]
     },
     {
@@ -60,13 +85,13 @@
           ]
         }
       },
-      "id": "4258b3fa-a226-473d-af4a-74f17a662c4e",
+      "id": "d52da5e1-469d-4f84-b5b9-d287c9a19cf5",
       "name": "List Unit Folders",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        640,
-        400
+        448,
+        208
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -77,8 +102,20 @@
     },
     {
       "parameters": {
+        "jsCode": "const items = $input.all();\nconst config = $('Configure Root Folder').first().json;\nconst materia = config.materia;\nconst namespace = config.namespace;\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const folder = items[i].json;\n  const folderName = String(folder.name || '');\n  const m = folderName.match(/unidad\\s*(\\d+)/i);\n  out.push({\n    json: {\n      folderId: folder.id,\n      folderName,\n      unidad: m ? m[1] : 'unknown',\n      unidadNombre: folderName,\n      materia,\n      namespace,\n    },\n    pairedItem: { item: i },\n  });\n}\nreturn out;"
+      },
+      "id": "75eaa127-028a-4db9-bc1d-bc949af36e0e",
+      "name": "Prepare Unit Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        672,
+        208
+      ]
+    },
+    {
+      "parameters": {
         "resource": "fileFolder",
-        "queryString": "pdf",
         "returnAll": true,
         "filter": {
           "driveId": {
@@ -89,7 +126,7 @@
           "folderId": {
             "__rl": true,
             "mode": "id",
-            "value": "={{ $json.id }}"
+            "value": "={{ $json.folderId }}"
           },
           "whatToSearch": "files"
         },
@@ -97,17 +134,19 @@
           "fields": [
             "id",
             "name",
-            "mimeType"
+            "mimeType",
+            "modifiedTime",
+            "webViewLink"
           ]
         }
       },
-      "id": "d95e8027-3e2e-4b54-95e9-51bdddcd408a",
+      "id": "0fd0fa9d-c278-41e5-8dc7-8cec7b469313",
       "name": "List PDFs in Unit",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        848,
-        400
+        896,
+        208
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
@@ -118,15 +157,28 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst processedIds = new Set(staticData.processedFileIds || []);\n\nconst items = $input.all();\nconst newItems = items.filter(item => !processedIds.has(item.json.id));\n\n// Marcar optimisticamente como procesados\nnewItems.forEach(item => processedIds.add(item.json.id));\nstaticData.processedFileIds = Array.from(processedIds);\n\nreturn newItems;"
+        "jsCode": "const items = $input.all();\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const pdf = items[i].json;\n  if (pdf.mimeType !== 'application/pdf') continue;\n  const unitCtx = $('Prepare Unit Context').itemMatching(i);\n  const unidad = unitCtx?.json?.unidad ?? 'unknown';\n  const unidadNombre = unitCtx?.json?.unidadNombre ?? '?';\n  const materia = unitCtx?.json?.materia ?? '';\n  const namespace = unitCtx?.json?.namespace ?? '';\n  out.push({\n    json: {\n      fileId: pdf.id,\n      fileName: pdf.name,\n      mimeType: pdf.mimeType,\n      modifiedTime: pdf.modifiedTime || '',\n      fileUrl: pdf.webViewLink || ('https://drive.google.com/file/d/' + pdf.id + '/view'),\n      unidad,\n      unidadNombre,\n      materia,\n      namespace,\n    },\n    pairedItem: items[i].pairedItem ?? { item: i },\n  });\n}\nreturn out;"
       },
-      "id": "46123b47-74da-47e8-b688-4afbf0fd9f78",
+      "id": "aff5bad7-bba3-458a-88f5-16ff658f5104",
+      "name": "Prepare PDF Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst materia = $input.first().json.materia;\n\nif (!staticData.processedFileIds) staticData.processedFileIds = {};\nconst processedIds = new Set(staticData.processedFileIds[materia] || []);\n\nconst items = $input.all();\nconst out = [];\nconst newIds = [];\n\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const id = item.json.fileId;\n  if (processedIds.has(id)) continue;\n  newIds.push(id);\n  out.push({\n    json: item.json,\n    pairedItem: item.pairedItem ?? { item: i },\n  });\n}\n\nif (newIds.length > 0) {\n  staticData.processedFileIds[materia] = [...processedIds, ...newIds];\n}\n\nreturn out;"
+      },
+      "id": "e55f72d9-220a-4051-8bc4-016418146f36",
       "name": "Filter Already Ingested",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1056,
-        400
+        1344,
+        208
       ]
     },
     {
@@ -135,26 +187,27 @@
         "fileId": {
           "__rl": true,
           "mode": "id",
-          "value": "={{ $json.id }}"
+          "value": "={{ $json.fileId }}"
         },
         "options": {
           "binaryPropertyName": "data"
         }
       },
-      "id": "9c6ecc05-a90f-4240-a90d-21719e9cf44f",
+      "id": "7e0de42a-09dc-4670-a56e-b7f58f2a2bf0",
       "name": "Download PDF",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
-        1248,
-        400
+        1568,
+        208
       ],
       "credentials": {
         "googleDriveOAuth2Api": {
           "id": "jCCRX6ZTZtLkhVwG",
           "name": "Google Drive account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
@@ -164,38 +217,59 @@
           "keepSource": "json"
         }
       },
-      "id": "6b89e853-a8fa-4cde-82f4-81c53aadb048",
+      "id": "a6a825cb-4c38-4396-935f-d84f334d1290",
       "name": "Extract PDF Text",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.1,
       "position": [
-        1456,
-        400
+        1792,
+        208
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const ctx = $('Filter Already Ingested').itemMatching(i);\n  if (!ctx) continue;\n  out.push({\n    json: {\n      ...ctx.json,\n      text: item.json.text || '',\n    },\n    pairedItem: item.pairedItem ?? { item: i },\n  });\n}\nreturn out;"
+      },
+      "id": "985d82e4-7e90-4c16-8bb9-6b4ce9fcd626",
+      "name": "Restore Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2016,
+        208
       ]
     },
     {
       "parameters": {
         "conditions": {
+          "combinator": "and",
           "conditions": [
             {
-              "leftValue": "={{ ($json.text || \"\").trim().length }}",
+              "leftValue": "={{ ($json.text || '').trim().length }}",
               "operator": {
                 "type": "number",
                 "operation": "gt"
               },
               "rightValue": 100
             }
-          ]
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 1
+          }
         },
         "options": {}
       },
-      "id": "60c92b61-1be4-47ee-a32d-025d010db43f",
+      "id": "fdc2afcb-426b-486c-9f95-6b2f92087b42",
       "name": "Skip Empty PDFs",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
       "position": [
-        1648,
-        400
+        2240,
+        208
       ]
     },
     {
@@ -207,35 +281,38 @@
           "value": "moodle-utn",
           "cachedResultName": "moodle-utn"
         },
-        "embeddingBatchSize": 100,
-        "options": {}
+        "embeddingBatchSize": 250,
+        "options": {
+          "pineconeNamespace": "={{ $json.namespace }}"
+        }
       },
-      "id": "91cb69db-3dfb-4144-9401-c9e86eca1ac5",
+      "id": "ff2cfa74-3dc6-4a74-9fa5-2a93a70fe408",
       "name": "Insert to Pinecone",
       "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
       "typeVersion": 1.3,
       "position": [
-        1840,
-        400
+        2464,
+        208
       ],
       "credentials": {
         "pineconeApi": {
           "id": "g8osAXtGEuLBJENX",
           "name": "Pinecone account"
         }
-      }
+      },
+      "onError": "continueErrorOutput"
     },
     {
       "parameters": {
         "modelName": "models/gemini-embedding-001"
       },
-      "id": "9b0f0130-14bd-4bba-851d-1a8c4c5d4715",
+      "id": "9a66dbcb-516a-4b31-8e0a-905277f17ec7",
       "name": "Gemini Embeddings",
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1744,
-        624
+        2480,
+        432
       ],
       "credentials": {
         "googlePalmApi": {
@@ -253,49 +330,108 @@
           "metadata": {
             "metadataValues": [
               {
+                "name": "materia",
+                "value": "={{ $json.materia }}"
+              },
+              {
                 "name": "unidad",
-                "value": "={{ $(\"List Unit Folders\").item.json.name.match(/(\\d+)/)?.[1] }}"
+                "value": "={{ $json.unidad }}"
               },
               {
                 "name": "unidadNombre",
-                "value": "={{ $(\"List Unit Folders\").item.json.name }}"
+                "value": "={{ $json.unidadNombre }}"
               },
               {
-                "name": "filename",
-                "value": "={{ $(\"List PDFs in Unit\").item.json.name }}"
+                "name": "fileId",
+                "value": "={{ $json.fileId }}"
+              },
+              {
+                "name": "fileName",
+                "value": "={{ $json.fileName }}"
+              },
+              {
+                "name": "fileUrl",
+                "value": "={{ $json.fileUrl }}"
+              },
+              {
+                "name": "modifiedTime",
+                "value": "={{ $json.modifiedTime }}"
+              },
+              {
+                "name": "ingestedAt",
+                "value": "={{ $now.toISO() }}"
               }
             ]
           }
         }
       },
-      "id": "be314236-cdf4-44cf-8065-f00e4b0a8fd4",
+      "id": "a0d86571-f947-41fd-9f0c-c7d7887553e5",
       "name": "Text Loader",
       "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
       "typeVersion": 1.1,
       "position": [
-        1872,
-        624
+        2608,
+        432
       ]
     },
     {
       "parameters": {
-        "chunkSize": 800,
-        "chunkOverlap": 150,
+        "chunkSize": 1200,
+        "chunkOverlap": 200,
         "options": {}
       },
-      "id": "0f81591b-e1ef-42f3-8b82-d4ce291387ff",
+      "id": "da5ee60c-fa4b-418f-be3c-982a51570bbd",
       "name": "Recursive Chunker",
       "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
       "typeVersion": 1,
       "position": [
-        1984,
-        768
+        2608,
+        640
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const out = [];\nconst items = $input.all();\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  const errorMsg = item.json?.error?.message\n               || item.error?.message\n               || (typeof item.json?.error === 'string' ? item.json.error : null)\n               || 'Error desconocido';\n  out.push({\n    json: {\n      chatId: '1415649706',\n      text: '\\u274C <b>Falla en ingesta RAG</b>\\n\\u26A0\\uFE0F <code>' + String(errorMsg).slice(0, 300) + '</code>',\n    },\n  });\n}\nreturn out;"
+      },
+      "id": "64b02711-10b4-4d50-9f17-855ed818590a",
+      "name": "Build Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48,
+        560
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "904ea304-16cc-4a65-bcc7-5091feab837b",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        272,
+        560
+      ],
+      "webhookId": "b2a23b10-095e-41c1-8ea8-1bbfa3ae772d",
+      "credentials": {
+        "telegramApi": {
+          "id": "Toi7xPxr8UFWHKpS",
+          "name": "Telegram account"
+        }
+      }
     }
   ],
   "pinData": {},
   "connections": {
-    "Start Ingestion": {
+    "Seleccionar Materia": {
       "main": [
         [
           {
@@ -321,6 +457,17 @@
       "main": [
         [
           {
+            "node": "Prepare Unit Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Unit Context": {
+      "main": [
+        [
+          {
             "node": "List PDFs in Unit",
             "type": "main",
             "index": 0
@@ -329,6 +476,17 @@
       ]
     },
     "List PDFs in Unit": {
+      "main": [
+        [
+          {
+            "node": "Prepare PDF Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare PDF Context": {
       "main": [
         [
           {
@@ -358,10 +516,35 @@
             "type": "main",
             "index": 0
           }
+        ],
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
         ]
       ]
     },
     "Extract PDF Text": {
+      "main": [
+        [
+          {
+            "node": "Restore Context",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restore Context": {
       "main": [
         [
           {
@@ -415,19 +598,45 @@
           }
         ]
       ]
+    },
+    "Build Error Payload": {
+      "main": [
+        [
+          {
+            "node": "Notify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Insert to Pinecone": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "active": false,
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": true
   },
-  "versionId": "d50c6c41-ca72-4ddb-ad7d-b6350d4db90d",
+  "versionId": "28afcbe1-aad8-4784-9acf-eb7dcae35c37",
   "meta": {
     "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
     "instanceId": "598ec986d25c6df54fb0d078300b3fe17c684a42adb35adae449cd6ffe3d8def"
   },
-  "id": "d6iN5IGIsknraCGw",
+  "id": "eIEIBbeBEGRjVwsy",
   "tags": []
 }
