@@ -74,7 +74,7 @@ Respuesta generada → Tutor revisa y publica en Moodle
 - **Index:** `moodle-utn`
 - **Namespaces:** `prog1`, `prog2`, `prog3`
 - **Modelo de embeddings:** Gemini Embeddings
-- **Records cargados:** Prog1 = 177 records (Prog2 y Prog3 pendientes)
+- **Records cargados:** Prog1 = 546 records, Prog2 = 672, Prog3 = 559
 
 ---
 
