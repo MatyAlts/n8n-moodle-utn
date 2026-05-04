@@ -74,7 +74,7 @@ Respuesta generada → Tutor revisa y publica en Moodle
 - **Index:** `moodle-utn`
 - **Namespaces:** `prog1`, `prog2`, `prog3`
 - **Modelo de embeddings:** Gemini Embeddings
-- **Records cargados:** Prog1 = 546 records, Prog2 = 672, Prog3 = 559
+- **Records cargados:** Prog1 = 546 records, Prog2 = 672 records, Prog3 = 559 records
 
 ---
 
@@ -134,8 +134,5 @@ El Responder extrae el namespace del callback para hacer el retrieval en el name
 
 ## Pendiente
 
-- [ ] Ingestar material de Prog2 en Pinecone (carpeta Drive configurada)
-- [ ] Ingestar material de Prog3 en Pinecone (carpeta Drive configurada)
-- [ ] Activar Monitor PROG2 y PROG3 desde el UI de n8n
 - [ ] Test end-to-end con pregunta real en foro de Prog1
 - [ ] Automatizar ingesta (actualmente es manual via Form Trigger)
