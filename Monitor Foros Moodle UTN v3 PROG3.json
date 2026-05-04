@@ -1,0 +1,569 @@
+{
+  "name": "Monitor Foros Moodle UTN v3 PROG3",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "6979f77e-0168-44f2-91a2-429c0b9dea1d",
+      "name": "Cada 30 Minutos",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "cfg-1",
+              "name": "moodleHost",
+              "value": "https://tup.sied.utn.edu.ar",
+              "type": "string"
+            },
+            {
+              "id": "cfg-2",
+              "name": "courseId",
+              "value": "44",
+              "type": "string"
+            },
+            {
+              "id": "cfg-3",
+              "name": "chatId",
+              "value": "1415649706",
+              "type": "string"
+            },
+            {
+              "id": "cfg-4",
+              "name": "errorChatId",
+              "value": "1415649706",
+              "type": "string"
+            },
+            {
+              "id": "cfg-5",
+              "name": "targetCmids",
+              "value": "=[14152, 13169, 13185, 13207, 13226, 13273, 13296, 13316, 13336, 13351]",
+              "type": "array"
+            },
+            {
+              "id": "cfg-6",
+              "name": "perPage",
+              "value": "100",
+              "type": "string"
+            },
+            {
+              "id": "cfg-7",
+              "name": "dedupeLimit",
+              "value": 1000,
+              "type": "number"
+            },
+            {
+              "id": "cfg-8",
+              "name": "namespace",
+              "value": "prog3",
+              "type": "string"
+            },
+            {
+              "id": "cfg-9",
+              "name": "chatId2",
+              "value": "7447493101",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "451edca4-bd1d-4dff-aedd-e1fd05916c40",
+      "name": "Set Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        224,
+        576
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.moodleHost + '/login/token.php' }}",
+        "sendBody": true,
+        "contentType": "form-urlencoded",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "username"
+            },
+            {
+              "name": "password"
+            },
+            {
+              "name": "service",
+              "value": "moodle_mobile_app"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "61df17ec-c0a8-4c0a-8f2a-86a40231e799",
+      "name": "Get Token",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        448,
+        576
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Set Config').first().json.moodleHost + '/webservice/rest/server.php' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wstoken",
+              "value": "={{ $json.token }}"
+            },
+            {
+              "name": "wsfunction",
+              "value": "mod_forum_get_forums_by_courses"
+            },
+            {
+              "name": "courseids[0]",
+              "value": "={{ $('Set Config').first().json.courseId }}"
+            },
+            {
+              "name": "moodlewsrestformat",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ed57629e-b5b2-436d-8f30-1bc1544e5b28",
+      "name": "Get Forums",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        272
+      ],
+      "executeOnce": true,
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst cfg = $('Set Config').first().json;\nconst raw = $input.all();\nconst allForums = [];\nfor (const item of raw) {\n  if (Array.isArray(item.json)) allForums.push(...item.json);\n  else if (item.json && typeof item.json === 'object') allForums.push(item.json);\n}\nconst targetCmids = Array.isArray(cfg.targetCmids) ? cfg.targetCmids : [];\nconst targetSet = new Set(targetCmids.map(Number));\nconst forums = targetCmids.length === 0 ? allForums : allForums.filter(f => targetSet.has(Number(f.cmid)));\nreturn forums.map((f, i) => ({ json: { forumId: f.id, forumName: f.name, cmid: f.cmid }, pairedItem: { item: i } }));\n"
+      },
+      "id": "b97ae691-e2c5-4a6b-8f67-bd9a2f00a930",
+      "name": "Filter Target Forums",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        192
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Set Config').first().json.moodleHost + '/webservice/rest/server.php' }}",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "wstoken",
+              "value": "={{ $('Get Token').first().json.token }}"
+            },
+            {
+              "name": "wsfunction",
+              "value": "mod_forum_get_forum_discussions"
+            },
+            {
+              "name": "forumid",
+              "value": "={{ $json.forumId }}"
+            },
+            {
+              "name": "perpage",
+              "value": "={{ $('Set Config').first().json.perPage }}"
+            },
+            {
+              "name": "moodlewsrestformat",
+              "value": "json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "b1cf5c25-aa99-4bed-94d9-a550c151bfd1",
+      "name": "Get Discussions",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1120,
+        192
+      ],
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nfunction stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/\\s+/g,' ').trim(); }\nconst cfg = $('Set Config').first().json;\nconst items = $input.all();\nconst unanswered = [];\nfor (let i = 0; i < items.length; i++) {\n  const data = items[i].json || {};\n  const forumCtx = $('Filter Target Forums').itemMatching(i);\n  const forumId = forumCtx?.json?.forumId;\n  const forumName = forumCtx?.json?.forumName || 'Foro desconocido';\n  const discussions = Array.isArray(data.discussions) ? data.discussions : Array.isArray(data) ? data : [];\n  for (const d of discussions) {\n    if (d.numreplies === 0) {\n      let body = stripHtml(d.message || '');\n      if (body.length > 300) body = body.substring(0, 300) + '...';\n      unanswered.push({ json: { discussionId: d.discussion, forumId, forumName, title: d.subject || d.name, author: d.userfullname || 'Desconocido', body, createdAt: d.created, url: 'https://tup.sied.utn.edu.ar/mod/forum/discuss.php?d=' + d.discussion, cbGenerate: 'generate:' + d.discussion + ':' + cfg.namespace }, pairedItem: { item: i } });\n    }\n  }\n}\nreturn unanswered;\n"
+      },
+      "id": "b8834de8-7650-4393-af0a-963288d53fcc",
+      "name": "Find Unanswered",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nconst FIRST_RUN_KEY = 'monitorInitialized';\nconst isFirstRun = !staticData[FIRST_RUN_KEY];\nconst notifiedIds = new Set(staticData.notifiedDiscussionIds || []);\nconst items = $input.all();\nif (isFirstRun) {\n  for (const item of items) notifiedIds.add(item.json.discussionId);\n  staticData.notifiedDiscussionIds = Array.from(notifiedIds);\n  staticData[FIRST_RUN_KEY] = true;\n  staticData.coldStartAt = new Date().toISOString();\n  staticData.coldStartCount = items.length;\n  return [];\n}\nconst out = [];\nfor (let i = 0; i < items.length; i++) {\n  const item = items[i];\n  if (!notifiedIds.has(item.json.discussionId)) out.push({ json: item.json, pairedItem: item.pairedItem ?? { item: i } });\n}\nreturn out;\n"
+      },
+      "id": "bc6a46a5-7622-4b43-bbfc-50c513db3b96",
+      "name": "Filter Already Notified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        128
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Set Config').first().json.chatId }}",
+        "text": "={{ '📚 <b>' + $json.forumName + '</b>\\n👤 <i>' + $json.author + '</i>\\n❓ <b>' + $json.title + '</b>\\n\\n' + $json.body + '\\n\\n<a href=\"' + $json.url + '\">Ver en Moodle</a>' }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🤖 Generar respuesta IA",
+                    "additionalFields": {
+                      "callback_data": "={{ $json.cbGenerate }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "973f92fe-3d68-4b0b-a732-b5e834011850",
+      "name": "Notify Tutor 1",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1792,
+        128
+      ],
+      "webhookId": "7ddd99c2-0548-484a-aad5-0e75767a505c",
+      "credentials": {
+        "telegramApi": {
+          "id": "Toi7xPxr8UFWHKpS",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Set Config').first().json.chatId2 }}",
+        "text": "={{ '📚 <b>' + $('Filter Already Notified').item.json.forumName + '</b>\\n👤 <i>' + $('Filter Already Notified').item.json.author + '</i>\\n❓ <b>' + $('Filter Already Notified').item.json.title + '</b>\\n\\n' + $('Filter Already Notified').item.json.body + '\\n\\n<a href=\"' + $('Filter Already Notified').item.json.url + '\">Ver en Moodle</a>' }}",
+        "replyMarkup": "inlineKeyboard",
+        "inlineKeyboard": {
+          "rows": [
+            {
+              "row": {
+                "buttons": [
+                  {
+                    "text": "🤖 Generar respuesta IA",
+                    "additionalFields": {
+                      "callback_data": "={{ $('Filter Already Notified').item.json.cbGenerate }}"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        },
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "47f02d80-0314-4fa9-b3bb-53b26f04980d",
+      "name": "Notify Tutor 2",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2016,
+        48
+      ],
+      "webhookId": "163e05e9-33c2-4f29-bdff-24e6b7ed4c35",
+      "credentials": {
+        "telegramApi": {
+          "id": "Toi7xPxr8UFWHKpS",
+          "name": "Telegram account"
+        }
+      },
+      "onError": "continueErrorOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst staticData = $getWorkflowStaticData('global');\nconst cfg = $('Set Config').first().json;\nconst limit = Number(cfg.dedupeLimit) || 1000;\nconst existing = new Set(staticData.notifiedDiscussionIds || []);\nconst items = $input.all();\nconst marked = [];\nfor (let i = 0; i < items.length; i++) {\n  const ctx = $('Filter Already Notified').itemMatching(i) ?? $('Find Unanswered').itemMatching(i);\n  const id = ctx?.json?.discussionId;\n  if (id !== undefined) { existing.add(id); marked.push(id); }\n}\nlet arr = Array.from(existing);\nif (arr.length > limit) arr = arr.slice(-limit);\nstaticData.notifiedDiscussionIds = arr;\nstaticData.lastSuccessfulRun = new Date().toISOString();\nstaticData.lastNotifiedCount = marked.length;\nreturn marked.map(id => ({ json: { discussionId: id, status: 'notified' } }));\n"
+      },
+      "id": "d5f5181d-da51-4324-a4c5-944f6f72e488",
+      "name": "Mark as Notified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst items = $input.all();\nconst cfg = $('Set Config').first().json;\nconst now = new Date().toISOString().slice(0, 16).replace('T', ' ');\nlet errorMsg = 'Error desconocido';\nfor (const item of items) {\n  const candidate = item?.json?.error?.message || item?.error?.message || (typeof item?.json?.error === 'string' ? item.json.error : null) || item?.json?.message;\n  if (candidate) { errorMsg = String(candidate); break; }\n}\nlet ctxLine = '';\nif (items[0]?.json?.discussionId !== undefined) ctxLine = '\\n📌 Discusion: ' + items[0].json.discussionId;\nconst text = '❌ <b>Monitor Foros — Falla</b>\\n🕐 ' + now + ctxLine + '\\n\\n<code>' + errorMsg.slice(0, 300) + '</code>';\nreturn [{ json: { chatId: cfg.errorChatId, text } }];\n"
+      },
+      "id": "500889b8-88fb-4c32-a321-68046c8c9a7b",
+      "name": "Build Error Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2240,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chatId }}",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true,
+          "parse_mode": "HTML"
+        }
+      },
+      "id": "2e019a44-d745-46d8-be2f-b18bbad88ceb",
+      "name": "Notify Error",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        2400,
+        432
+      ],
+      "webhookId": "34d7200a-1cf0-4eb7-a0c8-e16c4acf07f0",
+      "credentials": {
+        "telegramApi": {
+          "id": "Toi7xPxr8UFWHKpS",
+          "name": "Telegram account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Cada 30 Minutos": {
+      "main": [
+        [
+          {
+            "node": "Set Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Config": {
+      "main": [
+        [
+          {
+            "node": "Get Token",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Token": {
+      "main": [
+        [
+          {
+            "node": "Get Forums",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Forums": {
+      "main": [
+        [
+          {
+            "node": "Filter Target Forums",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Target Forums": {
+      "main": [
+        [
+          {
+            "node": "Get Discussions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Discussions": {
+      "main": [
+        [
+          {
+            "node": "Find Unanswered",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Find Unanswered": {
+      "main": [
+        [
+          {
+            "node": "Filter Already Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Already Notified": {
+      "main": [
+        [
+          {
+            "node": "Notify Tutor 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Tutor 1": {
+      "main": [
+        [
+          {
+            "node": "Notify Tutor 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Tutor 2": {
+      "main": [
+        [
+          {
+            "node": "Mark as Notified",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "error": [
+        [
+          {
+            "node": "Build Error Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Error Payload": {
+      "main": [
+        [
+          {
+            "node": "Notify Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": true
+  },
+  "versionId": "6b26202b-302f-4576-8513-bb68a9de509d",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "598ec986d25c6df54fb0d078300b3fe17c684a42adb35adae449cd6ffe3d8def"
+  },
+  "id": "WYxCJPR293XMPmMI",
+  "tags": []
+}
