@@ -1,5 +1,5 @@
 {
-  "name": "Responder Foros Moodle UTN",
+  "name": "Responder Foros Moodle UTN v2",
   "nodes": [
     {
       "parameters": {
@@ -9,15 +9,15 @@
         ],
         "additionalFields": {}
       },
-      "id": "225ad960-a84c-452a-a68a-72b89f7a40a6",
+      "id": "e0c17adb-2db8-4792-b58a-4e8a29f263cc",
       "name": "Telegram Trigger",
       "type": "n8n-nodes-base.telegramTrigger",
       "typeVersion": 1.2,
       "position": [
-        240,
-        608
+        0,
+        1008
       ],
-      "webhookId": "bf6621bb-f421-4969-afef-8d65240a65f8",
+      "webhookId": "5741211f-c5d4-42b0-93a4-1c34b5ace9ed",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -27,15 +27,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const item = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\n\nif (item.callback_query) {\n  const [action, discussionId] = (item.callback_query.data || '').split(':');\n  return [{ json: {\n    action,\n    discussionId: parseInt(discussionId),\n    callbackQueryId: item.callback_query.id,\n    chatId: String(item.callback_query.message?.chat?.id || '1415649706')\n  }}];\n}\n\nif (item.message?.text) {\n  const pending = staticData.pendingEdit;\n  if (pending) {\n    return [{ json: {\n      action: 'text_reply',\n      discussionId: pending.discussionId,\n      postId: pending.postId,\n      text: item.message.text,\n      chatId: String(item.message.chat?.id || '1415649706')\n    }}];\n  }\n}\n\nreturn [{ json: { action: 'ignore' } }];"
+        "jsCode": "const PENDING_EDIT_TTL_MS = 30 * 60 * 1000;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nconst item = $input.first().json;\nconst staticData = $getWorkflowStaticData('global');\nif (item.callback_query) {\n  const parts = (item.callback_query.data || '').split(':');\n  const action = parts[0];\n  const discussionId = parseInt(parts[1]);\n  const namespace = parts[2] || 'prog1';\n  return [{ json: { action, discussionId, namespace, callbackQueryId: item.callback_query.id, chatId: String(item.callback_query.message?.chat?.id || '1415649706') } }];\n}\nif (item.message?.text) {\n  const pending = staticData.pendingEdit;\n  if (pending) {\n    const age = pending.createdAt ? (Date.now() - pending.createdAt) : Infinity;\n    if (age < PENDING_EDIT_TTL_MS) {\n      const text = item.message.text;\n      return [{ json: { action: 'text_reply', discussionId: pending.discussionId, postId: pending.postId, text, textHtml: '<p>' + escapeHtml(text) + '</p>', chatId: String(item.message.chat?.id || '1415649706') } }];\n    }\n    delete staticData.pendingEdit;\n  }\n}\nreturn [{ json: { action: 'ignore' } }];"
       },
-      "id": "9b6aa58a-f1eb-474f-ad52-f4bf31863ae5",
+      "id": "2ca27f97-d5c4-487e-a1cf-2e15f80b953d",
       "name": "Parse Event",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        448,
-        608
+        224,
+        1008
       ]
     },
     {
@@ -156,13 +156,13 @@
         },
         "options": {}
       },
-      "id": "58475ab7-ce32-4696-9da2-5de8ee2047d4",
+      "id": "bbef5953-8eb7-4a53-b351-be54a2d68715",
       "name": "Route Action",
       "type": "n8n-nodes-base.switch",
       "typeVersion": 3.2,
       "position": [
-        640,
-        608
+        448,
+        960
       ]
     },
     {
@@ -173,15 +173,15 @@
           "text": "⏳ Generando respuesta..."
         }
       },
-      "id": "fdec20e6-c0b2-4faa-b420-e328fb9a495b",
+      "id": "57150081-2474-45de-9233-3aa20a23225d",
       "name": "Ack Generate",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        864,
-        208
+        672,
+        320
       ],
-      "webhookId": "afaa594e-15a8-4585-9eeb-c78091dbdf4a",
+      "webhookId": "2d493e4f-474b-4ff3-a0a1-231612204035",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -211,13 +211,13 @@
         },
         "options": {}
       },
-      "id": "7d393cee-5088-4dcf-a3ab-fa65f9dc0510",
+      "id": "bf000e3f-8c5f-42a2-85d3-1d7ff16b3693",
       "name": "Get Token Generate",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1072,
-        208
+        896,
+        320
       ]
     },
     {
@@ -236,7 +236,7 @@
             },
             {
               "name": "discussionid",
-              "value": "={{ $(\"Parse Event\").first().json.discussionId }}"
+              "value": "={{ $('Parse Event').first().json.discussionId }}"
             },
             {
               "name": "moodlewsrestformat",
@@ -246,26 +246,26 @@
         },
         "options": {}
       },
-      "id": "89775829-5f46-4b6c-8fc4-5b3cf520d29e",
+      "id": "b8d31b48-be39-411e-a370-b9a963909c73",
       "name": "Fetch Discussion Posts",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1264,
-        208
+        1120,
+        320
       ]
     },
     {
       "parameters": {
-        "jsCode": "const posts = $json.posts || [];\nconst firstPost = posts[0] || {};\n\nfunction stripHtml(html) {\n  return (html || '').replace(/<[^>]*>/g, '').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"').replace(/\\s+/g, ' ').trim();\n}\n\nconst question = stripHtml(firstPost.message || '');\nconst postId = firstPost.id;\nconst discussionId = $('Parse Event').first().json.discussionId;\nconst chatId = $('Parse Event').first().json.chatId;\nconst subject = firstPost.subject || 'Re:';\n\nreturn [{ json: { question, postId, discussionId, chatId, subject } }];"
+        "jsCode": "const posts = $json.posts || [];\nconst firstPost = posts[0] || {};\nfunction stripHtml(html) { return (html||'').replace(/<[^>]*>/g,'').replace(/&nbsp;/g,' ').replace(/&amp;/g,'&').replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'\"').replace(/\\s+/g,' ').trim(); }\nconst question = stripHtml(firstPost.message || '');\nconst postId = firstPost.id;\nconst discussionId = $('Parse Event').first().json.discussionId;\nconst chatId = $('Parse Event').first().json.chatId;\nconst namespace = $('Parse Event').first().json.namespace || 'prog1';\nconst subject = firstPost.subject || 'Re:';\nreturn [{ json: { question, postId, discussionId, chatId, subject, namespace } }];"
       },
-      "id": "947d7d95-0807-410a-a536-58a9d9cdf04c",
+      "id": "6faaf7bb-2a77-494c-8838-de1d58250451",
       "name": "Prepare Question",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1472,
-        208
+        1344,
+        320
       ]
     },
     {
@@ -273,16 +273,16 @@
         "promptType": "define",
         "text": "={{ $json.question }}",
         "options": {
-          "systemPromptTemplate": "Sos un asistente académico de la UTN. Respondé la consulta del estudiante usando el contexto del material de estudio.\nSé claro, didáctico y conciso. Si el contexto no es suficiente para responder con certeza, indicalo explícitamente en vez de inventar.\n\nContexto:\n{context}"
+          "systemPromptTemplate": "Sos un tutor de la UTN. Tu rol es asistir a los alumnos con sus consultas de manera clara, cercana y didáctica, tal como lo haría un tutor humano del equipo docente.\n\n**Sobre el material disponible:**\nEl contexto que recibís es material oficial de la materia, descargado del aula virtual de Moodle (PDFs por unidad temática). Usalo como referencia principal cuando sea relevante para la consulta. Si la pregunta no está cubierta por ese material (por ejemplo, consultas sobre la plataforma Moodle, GitHub, Git, VS Code, instalación de herramientas, o conceptos generales de programación), respondé con tu conocimiento general sin limitarte al RAG.\n\n**Extensión de la respuesta:**\nRespondé de forma proporcional a la complejidad de la consulta. Si la pregunta tiene una respuesta corta y directa, dala así — no la inflés. Solo desarrollá más cuando la consulta genuinamente lo requiera.\n\n**Estilo y tono:**\n- Usá voseo rioplatense (\"podés\", \"tenés\", \"hacés\", \"vas a ver\").\n- Saludá de forma cordial al inicio (\"¡Buenas!\", \"Hola, ¿cómo estás?\").\n- Si la consulta tiene varios puntos, respondé punto por punto con lista numerada.\n- Sé directo y conciso.\n- Incluí ejemplos de código cuando sea necesario, siempre bien formateados.\n- Si necesitás más información para responder correctamente (por ejemplo, un mensaje de error o una captura de pantalla), pedísela explícitamente.\n- Cerrá con una frase amable como \"Espero que haya resuelto tu duda, cualquier cosa estamos a disposición. ¡Saludos!\"\n\n**Lo que NO debés hacer:**\n- No inventes información que no sabés con certeza. Si no tenés certeza, decilo explícitamente.\n- No uses frases del estilo \"Como modelo de lenguaje...\" o similares.\n- No respondas en inglés.\n- No limitás tu respuesta al contexto del RAG si la pregunta es más general.\n- NO hagas preguntas al final para continuar la conversación (\"¿Necesitás ayuda con algo más?\", \"¿Hay algún otro concepto con el que necesites ayuda?\", etc.). Respondé la consulta y cerrá.\n\nContexto del material de la materia:\n{context}"
         }
       },
-      "id": "14324153-2466-44fd-9287-770cf5353f83",
+      "id": "a59f19a0-5502-42ea-84d9-9bc1a4d525bb",
       "name": "RAG Chain",
       "type": "@n8n/n8n-nodes-langchain.chainRetrievalQa",
       "typeVersion": 1.7,
       "position": [
-        1664,
-        208
+        1568,
+        0
       ]
     },
     {
@@ -290,13 +290,13 @@
         "modelName": "models/gemini-3.1-flash-lite-preview",
         "options": {}
       },
-      "id": "1e542c87-137e-43ec-8175-1298e65613a0",
+      "id": "8b9f8998-16ca-484c-b178-e92eee079dd5",
       "name": "Gemini Flash",
       "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
       "typeVersion": 1,
       "position": [
-        1664,
-        400
+        1584,
+        224
       ],
       "credentials": {
         "googlePalmApi": {
@@ -309,13 +309,13 @@
       "parameters": {
         "topK": 5
       },
-      "id": "2ff07396-dcc6-4789-8d64-5faef84da3bc",
+      "id": "115d458c-ec8c-4707-9a52-25800c3dfd7e",
       "name": "Vector Retriever",
       "type": "@n8n/n8n-nodes-langchain.retrieverVectorStore",
       "typeVersion": 1,
       "position": [
-        1760,
-        512
+        1712,
+        224
       ]
     },
     {
@@ -326,15 +326,17 @@
           "value": "moodle-utn",
           "cachedResultName": "moodle-utn"
         },
-        "options": {}
+        "options": {
+          "pineconeNamespace": "={{ $json.namespace }}"
+        }
       },
-      "id": "a81952c3-f3ce-47d1-bfb7-3d1fd5162c8b",
+      "id": "262f8719-2b77-4a9f-9da0-e0f84233c8bc",
       "name": "Pinecone Retrieve",
       "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
       "typeVersion": 1.3,
       "position": [
-        1872,
-        512
+        1712,
+        432
       ],
       "credentials": {
         "pineconeApi": {
@@ -347,13 +349,13 @@
       "parameters": {
         "modelName": "models/gemini-embedding-001"
       },
-      "id": "dca797da-79f2-45e1-8f8f-60a935d73f68",
+      "id": "9779c6bc-55c4-4d7c-8cd8-4b4c94b9ac97",
       "name": "Gemini Embeddings Retriever",
       "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
       "typeVersion": 1,
       "position": [
-        2032,
-        752
+        1712,
+        640
       ],
       "credentials": {
         "googlePalmApi": {
@@ -364,15 +366,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.pendingResponses) staticData.pendingResponses = {};\n\nconst response = $json.response || '';\nconst discussionId = $('Prepare Question').first().json.discussionId;\nconst postId = $('Prepare Question').first().json.postId;\nconst subject = $('Prepare Question').first().json.subject;\nconst chatId = $('Prepare Question').first().json.chatId;\n\nfunction formatInline(text) {\n  return text\n    .replace(/\\*\\*(.+?)\\*\\*/g, '<b>$1</b>')\n    .replace(/__(.+?)__/g, '<b>$1</b>')\n    .replace(/`([^`]+)`/g, '<code>$1</code>');\n}\n\nfunction markdownToHtml(text) {\n  const lines = text.split('\\n');\n  const result = [];\n  let inOl = false;\n  let inUl = false;\n\n  for (const line of lines) {\n    const olMatch = line.match(/^\\d+\\.\\s+(.*)/);\n    const ulMatch = line.match(/^[-*]\\s+(.*)/);\n\n    if (olMatch) {\n      if (inUl) { result.push('</ul>'); inUl = false; }\n      if (!inOl) { result.push('<ol>'); inOl = true; }\n      result.push('<li>' + formatInline(olMatch[1]) + '</li>');\n    } else if (ulMatch) {\n      if (inOl) { result.push('</ol>'); inOl = false; }\n      if (!inUl) { result.push('<ul>'); inUl = true; }\n      result.push('<li>' + formatInline(ulMatch[1]) + '</li>');\n    } else {\n      if (inOl) { result.push('</ol>'); inOl = false; }\n      if (inUl) { result.push('</ul>'); inUl = false; }\n      if (line.trim() === '') {\n        result.push('<br>');\n      } else {\n        result.push('<p>' + formatInline(line) + '</p>');\n      }\n    }\n  }\n\n  if (inOl) result.push('</ol>');\n  if (inUl) result.push('</ul>');\n\n  return result.join('\\n');\n}\n\nconst htmlResponse = markdownToHtml(response);\nstaticData.pendingResponses[String(discussionId)] = { text: htmlResponse, postId, subject };\n\nconst telegramPreview = formatInline(response);\nconst preview = '\\u{1F4DD} <b>Respuesta generada por IA:</b>\\n\\n' + telegramPreview + '\\n\\n<i>\\u00BFQu\\u00E9 hacemos con esta respuesta?</i>';\n\nreturn [{ json: {\n  preview,\n  discussionId,\n  chatId,\n  cbPublish: 'publish:' + discussionId,\n  cbEdit: 'edit:' + discussionId,\n  cbDiscard: 'discard:' + discussionId\n} }];"
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nif (!staticData.pendingResponses) staticData.pendingResponses = {};\nconst response = $json.response || '';\nconst discussionId = $('Prepare Question').first().json.discussionId;\nconst postId = $('Prepare Question').first().json.postId;\nconst subject = $('Prepare Question').first().json.subject;\nconst chatId = $('Prepare Question').first().json.chatId;\nfunction escapeHtml(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }\nfunction formatInline(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/\\*(.+?)\\*/g,'<i>$1</i>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/_(.+?)_/g,'<i>$1</i>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nfunction formatInlineTelegram(text) { text = escapeHtml(text); return text.replace(/\\*\\*(.+?)\\*\\*/g,'<b>$1</b>').replace(/__(.+?)__/g,'<b>$1</b>').replace(/`([^`]+)`/g,'<code>$1</code>'); }\nconst BT3 = String.fromCharCode(96).repeat(3);\nconst fencePattern = new RegExp(BT3 + '(\\\\w*)\\\\n?([\\\\s\\\\S]*?)' + BT3, 'g');\nconst fencePatternTg = new RegExp(BT3 + '\\\\w*\\\\n?[\\\\s\\\\S]*?' + BT3, 'g');\nfunction markdownToHtml(text) {\n  const codeBlocks = [];\n  const withPlaceholders = text.replace(fencePattern, (match, lang, code) => { const escaped = escapeHtml(code.replace(/\\n$/, '')); const idx = codeBlocks.length; codeBlocks.push('<pre><code>' + escaped + '</code></pre>'); return '\\n%%CB_' + idx + '%%\\n'; });\n  const lines = withPlaceholders.split('\\n');\n  const result = [];\n  let inOl = false, inUl = false;\n  for (const line of lines) {\n    const trimmed = line.trim();\n    const cbMatch = trimmed.match(/^%%CB_(\\d+)%%$/);\n    if (cbMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push(codeBlocks[parseInt(cbMatch[1])]); continue; }\n    const olMatch = trimmed.match(/^\\d+\\.\\s+(.*)/);\n    const ulMatch = trimmed.match(/^[-*]\\s+(.*)/);\n    const headingMatch = trimmed.match(/^#{1,3}\\s+(.*)/);\n    if (headingMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } result.push('<b>' + formatInline(headingMatch[1]) + '</b>'); }\n    else if (olMatch) { if (inUl) { result.push('</ul>'); inUl = false; } if (!inOl) { result.push('<ol>'); inOl = true; } result.push('<li>' + formatInline(olMatch[1]) + '</li>'); }\n    else if (ulMatch) { if (inOl) { result.push('</ol>'); inOl = false; } if (!inUl) { result.push('<ul>'); inUl = true; } result.push('<li>' + formatInline(ulMatch[1]) + '</li>'); }\n    else { if (inOl) { result.push('</ol>'); inOl = false; } if (inUl) { result.push('</ul>'); inUl = false; } if (trimmed === '') result.push('<br>'); else result.push('<p>' + formatInline(trimmed) + '</p>'); }\n  }\n  if (inOl) result.push('</ol>');\n  if (inUl) result.push('</ul>');\n  return result.join('\\n');\n}\nfunction toTelegramPreview(text) { return formatInlineTelegram(text.replace(fencePatternTg, '<i>[ver código en Moodle]</i>')); }\nconst htmlResponse = markdownToHtml(response);\nstaticData.pendingResponses[String(discussionId)] = { text: htmlResponse, postId, subject };\nconst telegramPreview = toTelegramPreview(response);\nconst preview = '\\u{1F4DD} <b>Respuesta generada por IA:</b>\\n\\n' + telegramPreview + '\\n\\n<i>\\u00BFQu\\u00E9 hacemos con esta respuesta?</i>';\nreturn [{ json: { preview, discussionId, chatId, cbPublish: 'publish:' + discussionId, cbEdit: 'edit:' + discussionId, cbDiscard: 'discard:' + discussionId } }];"
       },
-      "id": "101f54a2-cc84-4e83-9781-7dcc69973d85",
+      "id": "9efc80c4-7af2-4d72-a2fe-7408530d5aaa",
       "name": "Store Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1872,
-        208
+        1920,
+        320
       ]
     },
     {
@@ -413,15 +415,15 @@
           "parse_mode": "HTML"
         }
       },
-      "id": "e8c2d7a9-f3ce-4de7-820a-c3d3b143f4ff",
+      "id": "097dec65-ec83-4eff-835b-540f46d38807",
       "name": "Send Preview",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        2064,
-        208
+        2144,
+        320
       ],
-      "webhookId": "09f38c1d-ea67-48d6-825a-0c62d9d53266",
+      "webhookId": "cf836921-869f-484a-b278-8e961b876eaa",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -431,15 +433,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst discussionId = String($json.discussionId);\nconst stored = (staticData.pendingResponses || {})[discussionId];\nconst callbackQueryId = $json.callbackQueryId;\nconst chatId = $json.chatId;\n\nif (!stored) {\n  return [{ json: { error: true, callbackQueryId, chatId } }];\n}\n\nreturn [{ json: { text: stored.text, postId: stored.postId, subject: stored.subject || 'Re:', discussionId, callbackQueryId, chatId } }];"
+        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nconst callbackQueryId=$json.callbackQueryId;\nconst chatId=$json.chatId;\nif(!stored){return[{json:{error:true,callbackQueryId,chatId}}];}\nreturn[{json:{text:stored.text,postId:stored.postId,subject:stored.subject||'Re:',discussionId,callbackQueryId,chatId}}];"
       },
-      "id": "ce982155-705c-4c2f-b6eb-4b5972015ea0",
+      "id": "379ca861-a37c-4a78-8789-74a196bf7e02",
       "name": "Get Stored Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        864,
-        608
+        672,
+        816
       ]
     },
     {
@@ -450,15 +452,15 @@
           "text": "⏳ Publicando en Moodle..."
         }
       },
-      "id": "1d24860f-be44-48e5-9434-e1d2ece8b727",
+      "id": "8b112e0b-ba9a-45e7-9364-0cdb55a44c21",
       "name": "Ack Publish",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1072,
-        608
+        896,
+        816
       ],
-      "webhookId": "78a11067-83e1-4d0c-8062-34683230ed4f",
+      "webhookId": "923cb6c7-00dd-4456-b14a-666ecb8a51d8",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -488,13 +490,13 @@
         },
         "options": {}
       },
-      "id": "ec6ee7c2-3747-48a4-b6d4-3e8b1ea59cb6",
+      "id": "38feeec1-b3af-435b-938c-028ea2631f82",
       "name": "Get Token Publish",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1264,
-        608
+        1120,
+        816
       ]
     },
     {
@@ -515,15 +517,15 @@
             },
             {
               "name": "postid",
-              "value": "={{ $(\"Get Stored Response\").first().json.postId }}"
+              "value": "={{ $('Get Stored Response').first().json.postId }}"
             },
             {
               "name": "subject",
-              "value": "={{ $(\"Get Stored Response\").first().json.subject }}"
+              "value": "={{ $('Get Stored Response').first().json.subject }}"
             },
             {
               "name": "message",
-              "value": "={{ $(\"Get Stored Response\").first().json.text }}"
+              "value": "={{ $('Get Stored Response').first().json.text }}"
             },
             {
               "name": "messageformat",
@@ -537,32 +539,45 @@
         },
         "options": {}
       },
-      "id": "d9df7434-0a16-4cc6-8b34-c19c5868936e",
+      "id": "bbf90525-56e3-4586-a1df-a2833e0c426a",
       "name": "Post to Moodle",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1472,
-        608
+        1344,
+        816
       ]
     },
     {
       "parameters": {
-        "chatId": "={{ $(\"Get Stored Response\").first().json.chatId }}",
+        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Get Stored Response').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();"
+      },
+      "id": "1701dd90-ef29-447f-aa90-5a4e34602b7b",
+      "name": "Clean After Publish",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1632,
+        816
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Get Stored Response').first().json.chatId }}",
         "text": "✅ Respuesta publicada en Moodle.",
         "additionalFields": {
           "appendAttribution": false
         }
       },
-      "id": "117a406f-5b1b-419b-80e0-e3325492d80f",
+      "id": "2f319c94-fe65-4afc-993c-c616e991c4a2",
       "name": "Confirm Published",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1664,
-        608
+        1920,
+        816
       ],
-      "webhookId": "99a248d3-4a2f-4fbb-93ae-7e2907939342",
+      "webhookId": "674f3c92-a562-4f9b-b740-d7e9323dc424",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -572,15 +587,15 @@
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst discussionId = String($json.discussionId);\nconst stored = (staticData.pendingResponses || {})[discussionId];\n\nstaticData.pendingEdit = { discussionId, postId: stored?.postId, chatId: $json.chatId };\n\nreturn [{ json: { callbackQueryId: $json.callbackQueryId, chatId: $json.chatId } }];"
+        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($json.discussionId);\nconst stored=(staticData.pendingResponses||{})[discussionId];\nstaticData.pendingEdit={discussionId,postId:stored?.postId,chatId:$json.chatId,createdAt:Date.now()};\nreturn[{json:{callbackQueryId:$json.callbackQueryId,chatId:$json.chatId}}];"
       },
-      "id": "b2530e76-0fed-42a5-b60b-d83bbb0caf1a",
+      "id": "9a11cf98-0a9c-4345-aef7-211c2c85046c",
       "name": "Store Pending Edit",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        864,
-        912
+        672,
+        1008
       ]
     },
     {
@@ -589,15 +604,15 @@
         "queryId": "={{ $json.callbackQueryId }}",
         "additionalFields": {}
       },
-      "id": "e94e7aab-06a7-41fe-840f-9a65f96167e6",
+      "id": "3b332b5c-bd16-4a0e-b165-a3b1ac07e3e1",
       "name": "Ack Edit",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1072,
-        912
+        896,
+        1008
       ],
-      "webhookId": "19b0355a-5829-402f-b2b1-0322f216a195",
+      "webhookId": "1e075789-1843-4016-b99b-408d2cf6d2be",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -607,21 +622,21 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $(\"Store Pending Edit\").first().json.chatId }}",
-        "text": "✏️ Escribí la respuesta corregida. El próximo mensaje que mandes se publicará directamente en Moodle.",
+        "chatId": "={{ $('Store Pending Edit').first().json.chatId }}",
+        "text": "✏️ Escribí la respuesta corregida. El próximo mensaje que mandes se publicará directamente en Moodle. (Tenés 30 minutos antes de que la edición expire.)",
         "additionalFields": {
           "appendAttribution": false
         }
       },
-      "id": "3654bde3-1433-4e3b-a8da-31b73be7ea76",
+      "id": "5aeca406-f049-4d78-99c7-f7d7a511bafd",
       "name": "Ask for Text",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1264,
-        912
+        1120,
+        1008
       ],
-      "webhookId": "33a356b2-8894-45c0-a2b9-84c9f5466d45",
+      "webhookId": "d12fd925-1463-4d9d-99a3-23eb54f5d317",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -635,15 +650,15 @@
         "queryId": "={{ $json.callbackQueryId }}",
         "additionalFields": {}
       },
-      "id": "cf504521-0178-428a-bee3-58f7bf9de8a6",
+      "id": "96a10619-1dd1-4f75-9fd3-8361441ac551",
       "name": "Ack Discard",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        864,
-        1104
+        672,
+        1200
       ],
-      "webhookId": "cd798940-28c4-454a-bfdd-cedac29118f3",
+      "webhookId": "bfe4339a-76b3-4f17-a86d-78f6723f16d7",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -653,21 +668,34 @@
     },
     {
       "parameters": {
-        "chatId": "={{ $(\"Parse Event\").first().json.chatId }}",
+        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst discussionId=String($('Parse Event').first().json.discussionId);\nif(staticData.pendingResponses){delete staticData.pendingResponses[discussionId];}\nreturn $input.all();"
+      },
+      "id": "335f24b3-3fd3-49a3-8014-31ac95902732",
+      "name": "Clean After Discard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        1200
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Event').first().json.chatId }}",
         "text": "❌ Respuesta descartada.",
         "additionalFields": {
           "appendAttribution": false
         }
       },
-      "id": "5f4a5885-7d7c-431b-b768-3cc40dacc5c5",
+      "id": "6975e0d8-a85b-4e8a-9194-1b04005b7434",
       "name": "Confirm Discard",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1072,
-        1104
+        1120,
+        1200
       ],
-      "webhookId": "0b69d981-74b2-49f1-86c7-fe6670322fb2",
+      "webhookId": "ac6ffe66-23ed-4db9-bdb5-9a7b36641cce",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -697,13 +725,13 @@
         },
         "options": {}
       },
-      "id": "61aa7880-d6da-46a0-a60b-b56a9494d956",
+      "id": "c671e276-7bfd-469b-87ab-4c0ec13a67ff",
       "name": "Get Token Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        864,
-        1312
+        672,
+        1392
       ]
     },
     {
@@ -724,7 +752,7 @@
             },
             {
               "name": "postid",
-              "value": "={{ $(\"Parse Event\").first().json.postId }}"
+              "value": "={{ $('Parse Event').first().json.postId }}"
             },
             {
               "name": "subject",
@@ -732,7 +760,7 @@
             },
             {
               "name": "message",
-              "value": "={{ '<p>' + $(\"Parse Event\").first().json.text + '</p>' }}"
+              "value": "={{ $('Parse Event').first().json.textHtml }}"
             },
             {
               "name": "messageformat",
@@ -746,26 +774,26 @@
         },
         "options": {}
       },
-      "id": "88a80331-bb4f-434c-859f-524641a28f29",
+      "id": "4c9a1c4e-2fbd-47cf-b9c8-fc68ca4c16a3",
       "name": "Post to Moodle Reply",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.4,
       "position": [
-        1072,
-        1312
+        896,
+        1392
       ]
     },
     {
       "parameters": {
-        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst chatId = staticData.pendingEdit?.chatId || '1415649706';\ndelete staticData.pendingEdit;\nreturn [{ json: { chatId } }];"
+        "jsCode": "const staticData=$getWorkflowStaticData('global');\nconst chatId=staticData.pendingEdit?.chatId||'1415649706';\nconst discussionId=staticData.pendingEdit?.discussionId;\ndelete staticData.pendingEdit;\nif(discussionId&&staticData.pendingResponses){delete staticData.pendingResponses[String(discussionId)];}\nreturn[{json:{chatId}}];"
       },
-      "id": "15ad8d8b-de64-48ba-b1d3-5d1976cd9311",
+      "id": "19a1ef4a-77de-49fd-b172-99099efa54ec",
       "name": "Clear Pending",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        1264,
-        1312
+        1120,
+        1392
       ]
     },
     {
@@ -776,15 +804,15 @@
           "appendAttribution": false
         }
       },
-      "id": "f2bf1a1d-ee47-4a61-be8e-0f5dd2c0d4c5",
+      "id": "70b4c118-e6bf-4142-bb06-750215b7efe0",
       "name": "Confirm Reply",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
       "position": [
-        1472,
-        1312
+        1344,
+        1392
       ],
-      "webhookId": "0c713de1-b520-450a-b966-b47341f9e944",
+      "webhookId": "76568fdd-3bf2-4db4-ae62-b639649732ab",
       "credentials": {
         "telegramApi": {
           "id": "Toi7xPxr8UFWHKpS",
@@ -1003,6 +1031,17 @@
       "main": [
         [
           {
+            "node": "Clean After Publish",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean After Publish": {
+      "main": [
+        [
+          {
             "node": "Confirm Published",
             "type": "main",
             "index": 0
@@ -1033,6 +1072,17 @@
       ]
     },
     "Ack Discard": {
+      "main": [
+        [
+          {
+            "node": "Clean After Discard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean After Discard": {
       "main": [
         [
           {
@@ -1081,13 +1131,16 @@
   "settings": {
     "executionOrder": "v1",
     "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": true
   },
-  "versionId": "68ebed73-0b4a-4366-8514-939b5e88224a",
+  "versionId": "81ac5e17-a12f-48ab-9e7d-c811f1d5740c",
   "meta": {
     "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
     "instanceId": "598ec986d25c6df54fb0d078300b3fe17c684a42adb35adae449cd6ffe3d8def"
   },
-  "id": "WcbnXeAhpCPJKELZ",
+  "id": "qQRdcFrIXdycRKbU",
   "tags": []
 }
